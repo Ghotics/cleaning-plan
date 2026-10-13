@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Three-Cat Cleaning Plan</title>
+<meta name="description" content="Daily, weekly and monthly cleaning checklists for a 1-bedroom flat with 3 cats and balcony plants.">
+<meta name="theme-color" content="#F2F5F4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111816" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232C5A85'/%3E%3Cpath d='M9 16.5l4.5 4.5L23 11.5' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<style>
+/* Layout: phone-first fridge chart — sticky tabs + period progress on top, a period picker, then one column of tick lists */
+:root {
+  --bg: #F2F5F4;
+  --surface: #FFFFFF;
+  --ink: #1B2725;
+  --muted: #5A6A67;
+  --line: #D8E0DE;
+  --accent: #2C5A85;
+  --accent-soft: #E1EAF3;
+  --on-accent: #FFFFFF;
+  --sel-track: #5E86AE;
+  --cats: #9E520C;
+  --cats-bg: #FAE9DA;
+  --plants: #36702F;
+  --plants-bg: #E1EEDE;
+  --home: #524D8A;
+  --home-bg: #EAE8F5;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111816; --surface: #19221F; --ink: #E5EDEB; --muted: #9AABA7; --line: #2A3633;
+    --accent: #8DB6E1; --accent-soft: #1D2F42; --on-accent: #0E1925; --sel-track: #5D82A9;
+    --cats: #F0A764; --cats-bg: #382514; --plants: #92CB8A; --plants-bg: #1C311E;
+    --home: #B2ACEA; --home-bg: #29263F;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+}
+.wrap { max-width: 640px; margin-inline: auto; padding-inline: 16px; }
+
+.hero { display: grid; gap: 8px; padding-block: 24px 16px; }
+.eyebrow {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(30px, 8vw, 40px);
+  line-height: 1.05;
+  letter-spacing: -.02em;
+  text-wrap: balance;
+}
+.lede { margin: 0; color: var(--muted); max-width: 58ch; }
+
+/* Sticky top bar: tabs + progress for the whole period that clears next */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.topbar-in { display: grid; gap: 10px; padding-block: 10px 12px; }
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.tabs button {
+  font: 700 15px/1 var(--font-body);
+  padding: 11px 6px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.tabs button[aria-selected="true"] { background: var(--accent); color: var(--on-accent); }
+.tprog { display: grid; gap: 6px; }
+.tprow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+.tplabel { min-width: 0; }
+.tplabel strong { font-weight: 700; }
+.tpnote { color: var(--muted); }
+.tpcount { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tpcount strong { color: var(--ink); font-family: var(--font-display); font-size: 18px; }
+.bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.bar span { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 4px; transition: width .3s ease; }
+
+button:focus-visible, .sr:focus-visible + label .box { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+main.wrap { padding-block: 18px 8px; }
+.panel { display: grid; gap: 14px; }
+
+/* Period picker: days of the week, weeks of the month, months of the year */
+.picker { display: grid; gap: 6px; }
+.picker.c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.picker.c5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.picker.c6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.picker.c7 { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.pc {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.pc-top {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.pc-mid {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.c4 .pc-mid, .c5 .pc-mid { font-size: 14px; }
+.pc-frac { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pc-bar { width: 70%; height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.pc-bar i { display: block; height: 100%; width: 0; background: var(--accent); }
+.pc.is-now { border-color: var(--accent); }
+.pc.is-now .pc-top { color: var(--accent); }
+.pc.is-future { border-style: dashed; }
+.pc[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); border-style: solid; color: var(--on-accent); }
+.pc[aria-pressed="true"] .pc-top, .pc[aria-pressed="true"] .pc-frac { color: var(--on-accent); }
+.pc[aria-pressed="true"] .pc-bar { background: var(--sel-track); }
+.pc[aria-pressed="true"] .pc-bar i { background: var(--on-accent); }
+
+.selhead { display: grid; gap: 8px; }
+.seltitle { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 24px;
+  line-height: 1.15;
+  letter-spacing: -.01em;
+}
+.selrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+.selcount { margin: 0; font-size: 15px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.selcount strong { color: var(--ink); }
+.pbtns { display: flex; gap: 6px; flex-wrap: wrap; }
+.ghost {
+  font: 700 14px/1 var(--font-body);
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.ghost.primary { border-color: var(--accent); color: var(--accent); }
+.chip {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.group {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  scroll-margin-top: 130px;
+}
+.group.now { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.ghead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 16px 16px 2px;
+}
+.gtitle { display: flex; align-items: center; gap: 8px; }
+h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: -.01em;
+}
+.gmeta { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.focus { margin: 0; padding: 0 16px 10px; font-size: 14px; color: var(--muted); }
+
+ul { list-style: none; margin: 0; padding: 0; }
+.item { position: relative; border-top: 1px solid var(--line); }
+.sr { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+.item label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  padding: 13px 16px;
+  cursor: pointer;
+}
+.box {
+  width: 26px;
+  height: 26px;
+  margin-top: 1px;
+  border: 2px solid var(--muted);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  transition: background .15s, border-color .15s;
+}
+.box::after {
+  content: "";
+  width: 7px;
+  height: 13px;
+  border: solid var(--on-accent);
+  border-width: 0 3px 3px 0;
+  transform: translate(0, -1px) rotate(45deg);
+  opacity: 0;
+}
+.sr:checked + label .box { background: var(--accent); border-color: var(--accent); }
+.sr:checked + label .box::after { opacity: 1; }
+.txt { min-width: 0; display: grid; gap: 3px; }
+.t { font-weight: 700; }
+.n { font-size: 14px; color: var(--muted); }
+.sr:checked + label .t { text-decoration: line-through; color: var(--muted); }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 3px; }
+.tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.tag.cats { color: var(--cats); background: var(--cats-bg); }
+.tag.plants { color: var(--plants); background: var(--plants-bg); }
+.tag.home { color: var(--home); background: var(--home-bg); }
+.min { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.tips { display: grid; gap: 12px; padding-block: 28px 56px; }
+.tips h2 { font-size: 21px; }
+.tips ul { display: grid; gap: 12px; }
+.tips li { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
+.tips li p { margin: 0; max-width: 62ch; }
+.tips .tag { justify-self: start; }
+.foot { margin: 0; font-size: 13px; color: var(--muted); max-width: 62ch; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bar span, .box { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="wrap hero">
+  <p class="eyebrow">3 cats · 1 bedroom · balcony plants</p>
+  <h1>Three-Cat Cleaning Plan</h1>
+  <p class="lede">Small jobs every day, one area per weekday, and bigger jobs spread over the month. The page follows today's date by itself.</p>
+</header>
+
+<div class="topbar">
+  <div class="wrap topbar-in">
+    <div class="tabs" role="tablist" aria-label="Schedule">
+      <button role="tab" id="tab-daily" aria-controls="panel-daily" data-tab="daily">Daily</button>
+      <button role="tab" id="tab-weekly" aria-controls="panel-weekly" data-tab="weekly">Weekly</button>
+      <button role="tab" id="tab-monthly" aria-controls="panel-monthly" data-tab="monthly">Monthly</button>
+    </div>
+    <div class="tprog">
+      <div class="tprow">
+        <span class="tplabel"><strong id="tp-label">Daily jobs this week</strong> <span class="tpnote" id="tp-note"></span></span>
+        <span class="tpcount"><strong id="tp-done">0</strong> of <span id="tp-total">0</span></span>
+      </div>
+      <div class="bar" role="progressbar" id="tp-bar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+  <section class="panel" id="panel-daily" role="tabpanel" aria-labelledby="tab-daily" hidden></section>
+  <section class="panel" id="panel-weekly" role="tabpanel" aria-labelledby="tab-weekly" hidden></section>
+  <section class="panel" id="panel-monthly" role="tabpanel" aria-labelledby="tab-monthly" hidden></section>
+</main>
+
+<section class="wrap tips" aria-labelledby="tips-h">
+  <h2 id="tips-h">Good to know</h2>
+  <ul>
+    <li><span class="tag plants">Plants</span><p>In autumn, water less as the nights get colder. Bring in any plant that can't handle frost before nights drop close to 0&nbsp;°C.</p></li>
+    <li><span class="tag cats">Cats</span><p>Lilies are very poisonous to cats, even the pollen. Check that a new plant is cat-safe before it goes on the balcony.</p></li>
+    <li><span class="tag home">Home</span><p>Use unscented cleaners around the litter boxes, because strong smells can put cats off using them. Never mix bleach with ammonia.</p></li>
+  </ul>
+  <p class="foot">Daily ticks clear every Monday. Weekly ticks clear when a new month starts. Monthly ticks clear on 1 January. Ticks are saved in this browser on this device.</p>
+</section>
+
+<script>
+(function () {
+  // ---------- Schedule data: [id, task, note, tag, minutes] ----------
+  var D = {
+    daily: {
+      focus: "Spread these over the day. Most take a couple of minutes.",
+      items: [
+        ["d1", "Scoop the litter boxes", "Morning and evening is best with 3 cats.", "cats", 10],
+        ["d2", "Wash the food bowls", "", "cats", 3],
+        ["d3", "Fresh water", "Refill the bowls or top up the fountain.", "cats", 2],
+        ["d4", "Sweep around the litter boxes", "A hand vacuum is quickest.", "cats", 2],
+        ["d5", "Dishes and kitchen counter", "Wipe the counter and the stove top.", "home", 10],
+        ["d6", "5-minute tidy", "Put things back where they belong.", "home", 5]
+      ]
+    },
+    weekly: [
+      { name: "Monday", focus: "Floors", items: [
+        ["w1", "Vacuum the whole flat", "Floors, rugs, sofa and the cats' favourite spots. Empty the bin after.", "home", 25],
+        ["w2", "Take out trash and recycling", "", "home", 5]
+      ]},
+      { name: "Tuesday", focus: "Bathroom", items: [
+        ["w3", "Clean the bathroom", "Toilet, sink, shower and mirror.", "home", 25],
+        ["w4", "Swap the towels", "", "home", 2]
+      ]},
+      { name: "Wednesday", focus: "Cat hair and plants", items: [
+        ["w5", "Quick vacuum", "A fast second pass. With 3 cats, hair builds up in a few days.", "home", 15],
+        ["w6", "Lint-roll the sofa and bed", "", "home", 5],
+        ["w7", "Check the plant soil", "Push a finger 2 cm into the soil. Dry? Water. Still damp? Wait.", "plants", 5]
+      ]},
+      { name: "Thursday", focus: "Kitchen", items: [
+        ["w8", "Kitchen wipe-down", "Inside the microwave, cupboard doors, fridge handle and sink.", "home", 20],
+        ["w9", "Scrub the water fountain or bowls", "Take it apart and brush off the slimy parts.", "cats", 10]
+      ]},
+      { name: "Friday", focus: "Bedroom", items: [
+        ["w10", "Change the bed sheets", "Cat hair and dust collect here fast.", "home", 15],
+        ["w11", "Dust surfaces", "Shelves, desk, TV and windowsills.", "home", 10]
+      ]},
+      { name: "Saturday", focus: "Cat day", items: [
+        ["w12", "Mop the hard floors", "Keep the cats out until the floor is dry.", "home", 20],
+        ["w13", "Wash cat beds and blankets", "Use an unscented detergent.", "cats", 5],
+        ["w14", "Wipe the cat tree and litter area", "Clean the floor and wall around the boxes too.", "cats", 10],
+        ["w15", "Top up the litter", "Keep it about 5 to 7 cm deep.", "cats", 3]
+      ]},
+      { name: "Sunday", focus: "Balcony and a lighter day", items: [
+        ["w16", "Balcony tidy", "Sweep, pick off dead leaves, wipe the table and railing.", "plants", 15],
+        ["w17", "Check the plant soil", "Same finger test as Wednesday.", "plants", 5],
+        ["w18", "Brush the cats", "Less loose hair means less vacuuming.", "cats", 15],
+        ["w19", "Check supplies", "Litter, cat food, trash bags, cleaning spray.", "home", 3]
+      ]}
+    ],
+    monthly: [
+      { name: "Week 1", focus: "Days 1 to 7 · Litter and fridge", items: [
+        ["m1", "Full litter change", "Empty every box, wash with warm water and mild soap, dry, then refill. Using non-clumping litter? Do this every week instead.", "cats", 30],
+        ["m2", "Change the fountain filter", "Skip this if you use plain bowls.", "cats", 5],
+        ["m3", "Clean out the fridge", "Throw out old food and wipe the shelves.", "home", 20]
+      ]},
+      { name: "Week 2", focus: "Days 8 to 14 · Hidden dust", items: [
+        ["m4", "Deep vacuum", "Under the bed and sofa, behind furniture, along the edges.", "home", 30],
+        ["m5", "Clean the vacuum filter and brush", "Cut off wrapped-up hair so it keeps its suction.", "home", 10],
+        ["m6", "Trim the cats' nails", "Every 2 to 3 weeks.", "cats", 15]
+      ]},
+      { name: "Week 3", focus: "Days 15 to 21 · Glass and plants", items: [
+        ["m7", "Full litter change", "Every 2 weeks is a good pace with 3 cats.", "cats", 30],
+        ["m8", "Windows and balcony door", "Glass, frames and the door track.", "home", 30],
+        ["m9", "Wipe the small stuff", "Door handles, light switches, baseboards.", "home", 15],
+        ["m10", "Plant check-up", "Look under the leaves for bugs, clean the saucers, remove dead plants.", "plants", 15]
+      ]},
+      { name: "Week 4", focus: "Day 22 to the end · Deep clean", items: [
+        ["m11", "Bathroom deep clean", "Grout, drain, bath mat and shower curtain.", "home", 30],
+        ["m12", "Kitchen deep clean", "Oven, inside the cupboards, descale the kettle.", "home", 30],
+        ["m13", "Wash throws, cushion covers and pillows", "", "home", 10],
+        ["m14", "Sort the cat toys", "Throw out broken toys and loose strings.", "cats", 5],
+        ["m15", "Trim the cats' nails", "Second trim this month.", "cats", 15]
+      ]}
+    ]
+  };
+  var WEEKLY_ITEMS = D.weekly.reduce(function (a, g) { return a.concat(g.items); }, []);
+  var MONTHLY_ITEMS = D.monthly.reduce(function (a, g) { return a.concat(g.items); }, []);
+  var TAG = { cats: "Cats", plants: "Plants", home: "Home" };
+  var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ---------- Dates ----------
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function ymd(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function ym(y, m) { return y + "-" + pad(m + 1); }
+  function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+  function fmt(d, o) { return d.toLocaleDateString("en-GB", o); }
+  function fmtMin(m) {
+    if (m < 60) return m + " min";
+    var h = Math.floor(m / 60), r = m % 60;
+    return h + " h" + (r ? " " + r + " min" : "");
+  }
+  // A week (Monday to Sunday) belongs to the month that holds most of its days, i.e. the month of its Thursday.
+  function mondaysOfMonth(y, m) {
+    var first = new Date(y, m, 1);
+    var firstThu = new Date(y, m, 1 + ((4 - first.getDay() + 7) % 7));
+    var mon = addDays(firstThu, -3), out = [];
+    while (addDays(mon, 3).getMonth() === m) { out.push(mon); mon = addDays(mon, 7); }
+    return out;
+  }
+  function computeNow(base) {
+    var t = base || new Date();
+    var today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+    var dow = (today.getDay() + 6) % 7;
+    var monday = addDays(today, -dow);
+    var weekDays = [0, 1, 2, 3, 4, 5, 6].map(function (i) { return addDays(monday, i); });
+    var thu = addDays(monday, 3);
+    var weeks = mondaysOfMonth(thu.getFullYear(), thu.getMonth());
+    var weekIdx = weeks.map(ymd).indexOf(ymd(monday));
+    return {
+      today: today, todayKey: ymd(today), dow: dow, monday: monday, weekDays: weekDays,
+      wmYear: thu.getFullYear(), wmMonth: thu.getMonth(), weeks: weeks, weekIdx: weekIdx,
+      year: today.getFullYear(), month: today.getMonth(),
+      weekOfMonth: Math.min(4, Math.ceil(today.getDate() / 7))
+    };
+  }
+
+  // ---------- Storage ----------
+  var SK = "three-cat-cleaning-plan";
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(SK) || "{}") || {}; } catch (e) { state = {}; }
+  function save() { try { localStorage.setItem(SK, JSON.stringify(state)); } catch (e) {} }
+  // Keeps only ticks from the current week (dailies), the current month's weeks (weeklies) and the current year (monthlies).
+  function prune(N) {
+    var days = {}, wks = {}, yr = String(N.year);
+    N.weekDays.forEach(function (d) { days[ymd(d)] = 1; });
+    N.weeks.forEach(function (m) { wks[ymd(m)] = 1; });
+    Object.keys(state).forEach(function (k) {
+      var p = k.split("|"), keep = (p[0] === "d" && days[p[1]]) || (p[0] === "w" && wks[p[1]]) || (p[0] === "m" && p[1].slice(0, 4) === yr);
+      if (!keep) delete state[k];
+    });
+  }
+
+  // ---------- Period helpers ----------
+  var N, sel;
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function periods(tab) {
+    if (tab === "daily") return N.weekDays.map(function (d) { return "d|" + ymd(d); });
+    if (tab === "weekly") return N.weeks.map(function (m) { return "w|" + ymd(m); });
+    return MONTHS.map(function (_, i) { return "m|" + ym(N.year, i); });
+  }
+  function itemsOf(tab) { return tab === "daily" ? D.daily.items : tab === "weekly" ? WEEKLY_ITEMS : MONTHLY_ITEMS; }
+  function countIn(prefix, items) {
+    var d = 0;
+    items.forEach(function (it) { if (state[prefix + "|" + it[0]]) d++; });
+    return d;
+  }
+  function nowIndex(tab) { return tab === "daily" ? N.dow : tab === "weekly" ? N.weekIdx : N.month; }
+
+  // ---------- Rendering ----------
+  function itemHTML(prefix, it) {
+    var key = prefix + "|" + it[0], fid = "ck-" + it[0];
+    return '<li class="item"><input type="checkbox" class="sr" id="' + fid + '" data-key="' + key + '"' + (state[key] ? " checked" : "") + '>' +
+      '<label for="' + fid + '"><span class="box" aria-hidden="true"></span><span class="txt">' +
+      '<span class="t">' + it[1] + '</span>' + (it[2] ? '<span class="n">' + it[2] + '</span>' : "") +
+      '<span class="meta"><span class="tag ' + it[3] + '">' + TAG[it[3]] + '</span><span class="min">' + fmtMin(it[4]) + '</span></span>' +
+      '</span></label></li>';
+  }
+  function groupHTML(prefix, title, focus, items, gid, chip) {
+    var total = items.reduce(function (a, i) { return a + i[4]; }, 0);
+    return '<section class="group' + (chip ? " now" : "") + '" id="' + gid + '">' +
+      '<div class="ghead"><div class="gtitle"><h3>' + title + '</h3>' + (chip ? '<span class="chip">' + chip + '</span>' : "") + '</div>' +
+      '<span class="gmeta"><span class="gcount"></span> · about ' + fmtMin(total) + '</span></div>' +
+      (focus ? '<p class="focus">' + focus + '</p>' : "") +
+      '<ul>' + items.map(function (i) { return itemHTML(prefix, i); }).join("") + '</ul></section>';
+  }
+  function chipLabels(tab, i) {
+    if (tab === "daily") { var d = N.weekDays[i]; return [fmt(d, { weekday: "short" }), String(d.getDate())]; }
+    if (tab === "weekly") { return ["Wk " + (i + 1), fmt(N.weeks[i], { day: "numeric", month: "short" })]; }
+    return ["", MONTHS[i]];
+  }
+  function renderPanel(tab) {
+    var el = document.getElementById("panel-" + tab);
+    var keys = periods(tab), now = nowIndex(tab), s = sel[tab], prefix = keys[s];
+    var cols = tab === "daily" ? 7 : tab === "weekly" ? keys.length : 6;
+    var unit = tab === "daily" ? "day" : tab === "weekly" ? "week" : "month";
+    var html = '<div class="picker c' + cols + '" role="group" aria-label="Pick a ' + unit + '">';
+    keys.forEach(function (k, i) {
+      var lab = chipLabels(tab, i);
+      var cls = "pc" + (i === now ? " is-now" : "") + (i > now ? " is-future" : "");
+      html += '<button class="' + cls + '" data-pick="' + tab + '" data-i="' + i + '" aria-pressed="' + (i === s) + '">' +
+        (lab[0] ? '<span class="pc-top">' + lab[0] + '</span>' : "") +
+        '<span class="pc-mid">' + lab[1] + '</span><span class="pc-frac"></span><span class="pc-bar"><i></i></span></button>';
+    });
+    html += '</div>';
+
+    var title, chip = "", jump = "";
+    if (tab === "daily") {
+      title = fmt(N.weekDays[s], { weekday: "long", day: "numeric", month: "long" });
+      if (s === now) chip = "Today";
+    } else if (tab === "weekly") {
+      var mon = N.weeks[s];
+      title = fmt(mon, { day: "numeric", month: "short" }) + " to " + fmt(addDays(mon, 6), { day: "numeric", month: "short" });
+      if (s === now) { chip = "This week"; jump = '<button class="ghost primary" data-jump="day-' + N.dow + '">Jump to today</button>'; }
+    } else {
+      title = fmt(new Date(N.year, s, 1), { month: "long", year: "numeric" });
+      if (s === now) { chip = "This month"; jump = '<button class="ghost primary" data-jump="wk-' + N.weekOfMonth + '">Jump to this week</button>'; }
+    }
+    html += '<div class="selhead"><div class="seltitle"><h2>' + title + '</h2>' + (chip ? '<span class="chip">' + chip + '</span>' : "") + '</div>' +
+      '<div class="selrow"><p class="selcount"><strong class="sel-done">0</strong> of <span class="sel-total">0</span> done</p>' +
+      '<div class="pbtns">' + jump + '<button class="ghost" data-reset="' + tab + '">Untick this ' + unit + '</button></div></div></div>';
+
+    if (tab === "daily") {
+      html += groupHTML(prefix, "Every day", D.daily.focus, D.daily.items, "every-day", "");
+    } else if (tab === "weekly") {
+      D.weekly.forEach(function (g, i) {
+        var day = addDays(N.weeks[s], i);
+        var isToday = ymd(day) === N.todayKey;
+        html += groupHTML(prefix, g.name, fmt(day, { day: "numeric", month: "short" }) + " · " + g.focus, g.items, "day-" + i, isToday ? "Today" : "");
+      });
+    } else {
+      D.monthly.forEach(function (g, i) {
+        var isNowWeek = s === now && i + 1 === N.weekOfMonth;
+        html += groupHTML(prefix, g.name, g.focus, g.items, "wk-" + (i + 1), isNowWeek ? "This week" : "");
+      });
+    }
+    el.innerHTML = html;
+  }
+
+  var TOP = {
+    daily: function () { return ["Daily jobs this week", "clears " + fmt(addDays(N.monday, 7), { weekday: "short", day: "numeric", month: "short" })]; },
+    weekly: function () {
+      return ["Weekly jobs in " + fmt(new Date(N.wmYear, N.wmMonth, 1), { month: "long" }),
+        "clears " + fmt(addDays(N.weeks[N.weeks.length - 1], 7), { weekday: "short", day: "numeric", month: "short" })];
+    },
+    monthly: function () { return ["Monthly jobs in " + N.year, "clears 1 Jan"]; }
+  };
+
+  function updateCounts() {
+    ["daily", "weekly", "monthly"].forEach(function (tab) {
+      var el = document.getElementById("panel-" + tab);
+      var keys = periods(tab), items = itemsOf(tab), per = items.length;
+      el.querySelectorAll(".pc").forEach(function (b) {
+        var d = countIn(keys[+b.dataset.i], items);
+        b.querySelector(".pc-frac").textContent = d + "/" + per;
+        b.querySelector(".pc-bar i").style.width = (d / per) * 100 + "%";
+      });
+      var done = el.querySelectorAll("input.sr:checked").length;
+      el.querySelector(".sel-done").textContent = done;
+      el.querySelector(".sel-total").textContent = el.querySelectorAll("input.sr").length;
+      el.querySelectorAll(".group").forEach(function (g) {
+        g.querySelector(".gcount").textContent = g.querySelectorAll("input.sr:checked").length + "/" + g.querySelectorAll("input.sr").length;
+      });
+    });
+    var tab = activeTab;
+    var keys = periods(tab), items = itemsOf(tab), done = 0;
+    keys.forEach(function (k) { done += countIn(k, items); });
+    var total = keys.length * items.length, pct = total ? Math.round((done / total) * 100) : 0;
+    var t = TOP[tab]();
+    document.getElementById("tp-label").textContent = t[0];
+    document.getElementById("tp-note").textContent = "· " + t[1];
+    document.getElementById("tp-done").textContent = done;
+    document.getElementById("tp-total").textContent = total;
+    var bar = document.getElementById("tp-bar");
+    bar.setAttribute("aria-valuenow", pct);
+    bar.setAttribute("aria-label", t[0] + ": " + pct + "% done");
+    bar.firstElementChild.style.width = pct + "%";
+  }
+
+  // ---------- Tabs ----------
+  var activeTab = "weekly";
+  var tabs = document.querySelectorAll(".tabs button");
+  function show(name) {
+    activeTab = name;
+    tabs.forEach(function (b) {
+      var on = b.dataset.tab === name;
+      b.setAttribute("aria-selected", on ? "true" : "false");
+      b.tabIndex = on ? 0 : -1;
+      document.getElementById("panel-" + b.dataset.tab).hidden = !on;
+    });
+    try { localStorage.setItem(SK + "-tab", name); } catch (e) {}
+    updateCounts();
+  }
+  tabs.forEach(function (b) {
+    b.addEventListener("click", function () { show(b.dataset.tab); });
+    b.addEventListener("keydown", function (e) {
+      var order = ["daily", "weekly", "monthly"], i = order.indexOf(b.dataset.tab);
+      if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+        var next = order[(i + (e.key === "ArrowRight" ? 1 : 2)) % 3];
+        show(next);
+        document.getElementById("tab-" + next).focus();
+      }
+    });
+  });
+
+  // ---------- Events ----------
+  document.addEventListener("change", function (e) {
+    var t = e.target;
+    if (!t.dataset || !t.dataset.key) return;
+    if (t.checked) state[t.dataset.key] = 1; else delete state[t.dataset.key];
+    save();
+    updateCounts();
+  });
+  document.addEventListener("click", function (e) {
+    var pick = e.target.closest("[data-pick]");
+    if (pick) {
+      sel[pick.dataset.pick] = +pick.dataset.i;
+      renderPanel(pick.dataset.pick);
+      updateCounts();
+      return;
+    }
+    var r = e.target.closest("[data-reset]");
+    if (r) {
+      document.getElementById("panel-" + r.dataset.reset).querySelectorAll("input.sr").forEach(function (i) {
+        i.checked = false;
+        delete state[i.dataset.key];
+      });
+      save();
+      updateCounts();
+      return;
+    }
+    var j = e.target.closest("[data-jump]");
+    if (j) {
+      var target = document.getElementById(j.dataset.jump);
+      if (target) target.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+    }
+  });
+
+  // ---------- Start, and follow the date while the page stays open ----------
+  function boot() {
+    N = computeNow();
+    prune(N);
+    save();
+    sel = { daily: N.dow, weekly: N.weekIdx, monthly: N.month };
+    renderPanel("daily");
+    renderPanel("weekly");
+    renderPanel("monthly");
+    updateCounts();
+  }
+  boot();
+  try { var saved = localStorage.getItem(SK + "-tab"); if (saved === "daily" || saved === "weekly" || saved === "monthly") activeTab = saved; } catch (e) {}
+  show(activeTab);
+
+  function checkDate() { if (ymd(new Date()) !== N.todayKey) boot(); }
+  setInterval(checkDate, 60000);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) checkDate(); });
+  window.addEventListener("focus", checkDate);
+  window.addEventListener("pageshow", checkDate);
+})();
+</script>
+</body>
+</html>
