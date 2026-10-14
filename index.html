@@ -29,6 +29,9 @@
   --plants-bg: #E1EEDE;
   --home: #524D8A;
   --home-bg: #EAE8F5;
+  --ok: #2E7D4F;
+  --warn: #B7791F;
+  --bad: #B3261E;
   --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
   --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, sans-serif;
   color-scheme: light;
@@ -39,6 +42,7 @@
     --accent: #8DB6E1; --accent-soft: #1D2F42; --on-accent: #0E1925; --sel-track: #5D82A9;
     --cats: #F0A764; --cats-bg: #382514; --plants: #92CB8A; --plants-bg: #1C311E;
     --home: #B2ACEA; --home-bg: #29263F;
+    --ok: #6FCF97; --warn: #F2C46B; --bad: #F28B82;
     color-scheme: dark;
   }
 }
@@ -75,6 +79,23 @@ h1 {
   text-wrap: balance;
 }
 .lede { margin: 0; color: var(--muted); max-width: 58ch; }
+.sync {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0;
+  padding: 5px 12px 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--muted);
+}
+.sync .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+.sync[data-state="live"] .dot { background: var(--ok); }
+.sync[data-state="connecting"] .dot, .sync[data-state="offline"] .dot { background: var(--warn); }
+.sync[data-state="error"] .dot { background: var(--bad); }
 
 /* Sticky top bar: tabs + progress for the whole period that clears next */
 .topbar {
@@ -307,6 +328,7 @@ ul { list-style: none; margin: 0; padding: 0; }
   <p class="eyebrow">3 cats · 1 bedroom · balcony plants</p>
   <h1>Three-Cat Cleaning Plan</h1>
   <p class="lede">Small jobs every day, one area per weekday, and bigger jobs spread over the month. The page follows today's date by itself.</p>
+  <p class="sync" id="sync" data-state="local" role="status"><span class="dot" aria-hidden="true"></span><span id="sync-text">Saved on this device only</span></p>
 </header>
 
 <div class="topbar">
@@ -339,9 +361,10 @@ ul { list-style: none; margin: 0; padding: 0; }
     <li><span class="tag cats">Cats</span><p>Lilies are very poisonous to cats, even the pollen. Check that a new plant is cat-safe before it goes on the balcony.</p></li>
     <li><span class="tag home">Home</span><p>Use unscented cleaners around the litter boxes, because strong smells can put cats off using them. Never mix bleach with ammonia.</p></li>
   </ul>
-  <p class="foot">Daily ticks clear every Monday. Weekly ticks clear when a new month starts. Monthly ticks clear on 1 January. Ticks are saved in this browser on this device.</p>
+  <p class="foot">Daily ticks clear every Monday. Weekly ticks clear when a new month starts. Monthly ticks clear on 1 January. Once sharing is set up, everyone who opens this page sees the same ticks.</p>
 </section>
 
+<script src="config.js"></script>
 <script>
 (function () {
   // ---------- Schedule data: [id, task, note, tag, minutes] ----------
@@ -459,20 +482,132 @@ ul { list-style: none; margin: 0; padding: 0; }
     };
   }
 
-  // ---------- Storage ----------
+  // ---------- Storage: a copy on this device (instant, works offline) + the shared list ----------
   var SK = "three-cat-cleaning-plan";
-  var state = {};
-  try { state = JSON.parse(localStorage.getItem(SK) || "{}") || {}; } catch (e) { state = {}; }
-  function save() { try { localStorage.setItem(SK, JSON.stringify(state)); } catch (e) {} }
-  // Keeps only ticks from the current week (dailies), the current month's weeks (weeklies) and the current year (monthlies).
+  var PK = SK + "-pending";
+  function readLS(k) { try { return JSON.parse(localStorage.getItem(k) || "{}") || {}; } catch (e) { return {}; } }
+  function writeLS(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  var state = readLS(SK);
+  var pending = readLS(PK); // changes the shared list hasn't confirmed yet: key -> 1 (ticked) or null (unticked)
+  function save() { writeLS(SK, state); writeLS(PK, pending); }
+
+  var CFG = window.CLEANING_CONFIG || {};
+  var DB = String(CFG.databaseUrl || "").trim().replace(/\/+$/, "");
+  var LIST = String(CFG.listId || "").trim();
+  var DB_OK = /^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.(firebaseio\.com|firebasedatabase\.app)$/i.test(DB) ||
+    /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(DB);
+  var SYNC = !!(DB && DB_OK && /^[A-Za-z0-9_-]{20,}$/.test(LIST));
+  var TICKS = SYNC ? DB + "/plans/" + LIST + "/ticks.json" : "";
+
+  var syncEl = document.getElementById("sync"), syncText = document.getElementById("sync-text");
+  var STATUS = {
+    local: "Saved on this device only",
+    badconfig: "Sharing is off: the database URL in config.js doesn't look right",
+    connecting: "Connecting to your shared list…",
+    live: "Shared list · updates live",
+    offline: "Offline · your ticks will sync when you're back online",
+    error: "Can't reach the shared list. Check config.js and the database rules."
+  };
+  function setStatus(s) { syncEl.dataset.state = s; syncText.textContent = STATUS[s]; }
+
+  // Applies changes ({key: 1 or null}) here, then sends them to the shared list.
+  function setTicks(changes) {
+    Object.keys(changes).forEach(function (k) {
+      if (changes[k]) state[k] = 1; else delete state[k];
+      if (SYNC) pending[k] = changes[k] ? 1 : null;
+    });
+    save();
+    flush();
+  }
+  // Clears ticks from finished periods: dailies from past weeks, weeklies from past months, monthlies from past years.
   function prune(N) {
-    var days = {}, wks = {}, yr = String(N.year);
+    var days = {}, wks = {}, yr = String(N.year), drop = {}, any = false;
     N.weekDays.forEach(function (d) { days[ymd(d)] = 1; });
     N.weeks.forEach(function (m) { wks[ymd(m)] = 1; });
     Object.keys(state).forEach(function (k) {
-      var p = k.split("|"), keep = (p[0] === "d" && days[p[1]]) || (p[0] === "w" && wks[p[1]]) || (p[0] === "m" && p[1].slice(0, 4) === yr);
-      if (!keep) delete state[k];
+      var p = k.split("|"), keep = (p[0] === "d" && days[p[1]]) || (p[0] === "w" && wks[p[1]]) || (p[0] === "m" && String(p[1]).slice(0, 4) === yr);
+      if (!keep) { drop[k] = null; any = true; }
     });
+    if (any) setTicks(drop);
+  }
+
+  // ---------- Shared list (Firebase Realtime Database, REST + live stream) ----------
+  var flushing = false, flushAgain = false;
+  function flush() {
+    if (!SYNC) return;
+    var keys = Object.keys(pending);
+    if (!keys.length) return;
+    if (flushing) { flushAgain = true; return; }
+    flushing = true;
+    var body = {};
+    keys.forEach(function (k) { body[k] = pending[k]; });
+    fetch(TICKS, { method: "PATCH", body: JSON.stringify(body) })
+      .then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        keys.forEach(function (k) { if (k in pending && pending[k] === body[k]) delete pending[k]; });
+        save();
+        if (gotSnapshot && es && es.readyState === 1) setStatus("live");
+      })
+      .catch(function () { setStatus(navigator.onLine === false ? "offline" : (gotSnapshot ? "offline" : "error")); })
+      .then(function () {
+        flushing = false;
+        if (flushAgain) { flushAgain = false; flush(); }
+      });
+  }
+
+  var es = null, gotSnapshot = false, retryTimer = null;
+  function connect() {
+    if (!SYNC) { setStatus(DB ? "badconfig" : "local"); return; }
+    if (typeof EventSource === "undefined") { setStatus("error"); return; }
+    if (es) es.close();
+    clearTimeout(retryTimer);
+    if (!gotSnapshot) setStatus("connecting");
+    es = new EventSource(TICKS);
+    es.addEventListener("put", function (e) { onRemote("put", e.data); });
+    es.addEventListener("patch", function (e) { onRemote("patch", e.data); });
+    es.addEventListener("cancel", function () { setStatus("error"); });
+    es.onopen = function () { flush(); };
+    es.onerror = function () {
+      var online = navigator.onLine !== false;
+      if (es.readyState === 2) { // closed for good: try again in a little while
+        setStatus(online ? "error" : "offline");
+        retryTimer = setTimeout(connect, 20000);
+      } else {
+        setStatus(!online || gotSnapshot ? "offline" : "error");
+      }
+    };
+  }
+  function onRemote(type, raw) {
+    var m;
+    try { m = JSON.parse(raw); } catch (e) { return; }
+    if (!m) return;
+    var path = m.path || "/", data = m.data;
+    if (path === "/") {
+      if (type === "put") {
+        var fresh = {};
+        if (data && typeof data === "object") Object.keys(data).forEach(function (k) { if (data[k]) fresh[k] = 1; });
+        state = fresh;
+      } else if (data && typeof data === "object") {
+        Object.keys(data).forEach(function (k) { if (data[k]) state[k] = 1; else delete state[k]; });
+      }
+    } else if (type === "put") {
+      var key = path.replace(/^\//, "").split("/")[0];
+      if (data) state[key] = 1; else delete state[key];
+    }
+    // Changes made here that the list hasn't confirmed yet still count.
+    Object.keys(pending).forEach(function (k) { if (pending[k]) state[k] = 1; else delete state[k]; });
+    save();
+    if (type === "put" && path === "/") {
+      gotSnapshot = true;
+      setStatus("live");
+      prune(N);
+      flush();
+    }
+    refreshTicks();
+  }
+  function refreshTicks() {
+    document.querySelectorAll("input.sr").forEach(function (i) { i.checked = !!state[i.dataset.key]; });
+    updateCounts();
   }
 
   // ---------- Period helpers ----------
@@ -631,8 +766,9 @@ ul { list-style: none; margin: 0; padding: 0; }
   document.addEventListener("change", function (e) {
     var t = e.target;
     if (!t.dataset || !t.dataset.key) return;
-    if (t.checked) state[t.dataset.key] = 1; else delete state[t.dataset.key];
-    save();
+    var c = {};
+    c[t.dataset.key] = t.checked ? 1 : null;
+    setTicks(c);
     updateCounts();
   });
   document.addEventListener("click", function (e) {
@@ -645,11 +781,12 @@ ul { list-style: none; margin: 0; padding: 0; }
     }
     var r = e.target.closest("[data-reset]");
     if (r) {
+      var c = {};
       document.getElementById("panel-" + r.dataset.reset).querySelectorAll("input.sr").forEach(function (i) {
         i.checked = false;
-        delete state[i.dataset.key];
+        c[i.dataset.key] = null;
       });
-      save();
+      setTicks(c);
       updateCounts();
       return;
     }
@@ -664,7 +801,6 @@ ul { list-style: none; margin: 0; padding: 0; }
   function boot() {
     N = computeNow();
     prune(N);
-    save();
     sel = { daily: N.dow, weekly: N.weekIdx, monthly: N.month };
     renderPanel("daily");
     renderPanel("weekly");
@@ -675,11 +811,21 @@ ul { list-style: none; margin: 0; padding: 0; }
   try { var saved = localStorage.getItem(SK + "-tab"); if (saved === "daily" || saved === "weekly" || saved === "monthly") activeTab = saved; } catch (e) {}
   show(activeTab);
 
+  connect();
+  flush();
+
   function checkDate() { if (ymd(new Date()) !== N.todayKey) boot(); }
+  function wake() {
+    checkDate();
+    if (SYNC && (!es || es.readyState === 2)) connect();
+    flush();
+  }
   setInterval(checkDate, 60000);
-  document.addEventListener("visibilitychange", function () { if (!document.hidden) checkDate(); });
-  window.addEventListener("focus", checkDate);
-  window.addEventListener("pageshow", checkDate);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) wake(); });
+  window.addEventListener("focus", wake);
+  window.addEventListener("pageshow", wake);
+  window.addEventListener("online", wake);
+  window.addEventListener("offline", function () { if (SYNC) setStatus("offline"); });
 })();
 </script>
 </body>
