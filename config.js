@@ -3,7 +3,7 @@
 //    It looks like: https://your-project-default-rtdb.europe-west1.firebasedatabase.app
 // 2. Tap "Commit changes". Everyone who opens the page now shares the same ticks.
 window.CLEANING_CONFIG = {
-  databaseUrl: "",
+  databaseUrl: "https://cleaning-plan-ab68c-default-rtdb.europe-west1.firebasedatabase.app/",
 
   // Your list's private name. Leave it as it is.
   listId: "ocw6UORUKdvACzRzXhl0wNiq"
