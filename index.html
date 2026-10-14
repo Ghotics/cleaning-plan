@@ -84,8 +84,10 @@ h1 {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  max-width: 100%;
   margin: 4px 0 0;
   padding: 5px 12px 5px 10px;
+  line-height: 1.35;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--surface);
@@ -94,7 +96,9 @@ h1 {
 }
 .sync .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
 .sync[data-state="live"] .dot { background: var(--ok); }
-.sync[data-state="connecting"] .dot, .sync[data-state="offline"] .dot { background: var(--warn); }
+.sync[data-state="connecting"] .dot, .sync[data-state="offline"] .dot,
+.sync[data-state="file"] .dot, .sync[data-state="missing"] .dot,
+.sync[data-state="broken"] .dot, .sync[data-state="badconfig"] .dot { background: var(--warn); }
 .sync[data-state="error"] .dot { background: var(--bad); }
 
 /* Sticky top bar: tabs + progress for the whole period that clears next */
@@ -328,7 +332,7 @@ ul { list-style: none; margin: 0; padding: 0; }
   <p class="eyebrow">3 cats · 1 bedroom · balcony plants</p>
   <h1>Three-Cat Cleaning Plan</h1>
   <p class="lede">Small jobs every day, one area per weekday, and bigger jobs spread over the month. The page follows today's date by itself.</p>
-  <p class="sync" id="sync" data-state="local" role="status"><span class="dot" aria-hidden="true"></span><span id="sync-text">Saved on this device only</span></p>
+  <p class="sync" id="sync" data-state="loading" role="status"><span class="dot" aria-hidden="true"></span><span id="sync-text">Looking for your shared list…</span></p>
 </header>
 
 <div class="topbar">
@@ -364,7 +368,6 @@ ul { list-style: none; margin: 0; padding: 0; }
   <p class="foot">Daily ticks clear every Monday. Weekly ticks clear when a new month starts. Monthly ticks clear on 1 January. Once sharing is set up, everyone who opens this page sees the same ticks.</p>
 </section>
 
-<script src="config.js"></script>
 <script>
 (function () {
   // ---------- Schedule data: [id, task, note, tag, minutes] ----------
@@ -491,18 +494,47 @@ ul { list-style: none; margin: 0; padding: 0; }
   var pending = readLS(PK); // changes the shared list hasn't confirmed yet: key -> 1 (ticked) or null (unticked)
   function save() { writeLS(SK, state); writeLS(PK, pending); }
 
-  var CFG = window.CLEANING_CONFIG || {};
-  var DB = String(CFG.databaseUrl || "").trim().replace(/\/+$/, "");
-  var LIST = String(CFG.listId || "").trim();
-  var DB_OK = /^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.(firebaseio\.com|firebasedatabase\.app)$/i.test(DB) ||
-    /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(DB);
-  var SYNC = !!(DB && DB_OK && /^[A-Za-z0-9_-]{20,}$/.test(LIST));
-  var TICKS = SYNC ? DB + "/plans/" + LIST + "/ticks.json" : "";
+  // Shared list settings come from config.js. It is loaded fresh every time (never an old saved copy),
+  // and checked again whenever the page comes back into view, until sharing is on.
+  var IS_FILE = location.protocol === "file:";
+  var DB = "", LIST = "", SYNC = false, TICKS = "", cfgLoading = false;
+  function loadConfig() {
+    if (cfgLoading || SYNC) return;
+    cfgLoading = true;
+    try { delete window.CLEANING_CONFIG; } catch (e) { window.CLEANING_CONFIG = undefined; }
+    var s = document.createElement("script");
+    s.src = IS_FILE ? "config.js" : "config.js?v=" + Date.now();
+    function done(result) { s.remove(); cfgLoading = false; applyConfig(result); }
+    s.onload = function () { done(window.CLEANING_CONFIG ? "ok" : "broken"); };
+    s.onerror = function () { done("missing"); };
+    document.head.appendChild(s);
+  }
+  function applyConfig(result) {
+    var cfg = result === "ok" ? window.CLEANING_CONFIG : {};
+    var db = String(cfg.databaseUrl || "").trim().replace(/\/+$/, "");
+    var list = String(cfg.listId || "").trim();
+    var dbOk = /^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.(firebaseio\.com|firebasedatabase\.app)$/i.test(db) ||
+      /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(db);
+    if (db && dbOk && /^[A-Za-z0-9_-]{20,}$/.test(list)) {
+      DB = db; LIST = list; SYNC = true;
+      TICKS = DB + "/plans/" + LIST + "/ticks.json";
+      connect();
+      flush();
+      return;
+    }
+    var why = result !== "ok" ? result : db ? "badconfig" : "local";
+    if (IS_FILE && why !== "badconfig") why = "file";
+    setStatus(why);
+  }
 
   var syncEl = document.getElementById("sync"), syncText = document.getElementById("sync-text");
   var STATUS = {
-    local: "Saved on this device only",
-    badconfig: "Sharing is off: the database URL in config.js doesn't look right",
+    loading: "Looking for your shared list…",
+    local: "Saved on this device only · add your database URL to config.js to share ticks",
+    file: "This is a copy saved on this computer. Open your github.io link to share ticks.",
+    missing: "Saved on this device only · config.js wasn't found next to this page",
+    broken: "Saved on this device only · config.js has a mistake in it, check the quotes around the URL",
+    badconfig: "Saved on this device only · the settings in config.js don't look right",
     connecting: "Connecting to your shared list…",
     live: "Shared list · updates live",
     offline: "Offline · your ticks will sync when you're back online",
@@ -514,7 +546,7 @@ ul { list-style: none; margin: 0; padding: 0; }
   function setTicks(changes) {
     Object.keys(changes).forEach(function (k) {
       if (changes[k]) state[k] = 1; else delete state[k];
-      if (SYNC) pending[k] = changes[k] ? 1 : null;
+      pending[k] = changes[k] ? 1 : null; // kept until the shared list confirms it, so ticks made before sharing worked still arrive
     });
     save();
     flush();
@@ -528,7 +560,9 @@ ul { list-style: none; margin: 0; padding: 0; }
       var p = k.split("|"), keep = (p[0] === "d" && days[p[1]]) || (p[0] === "w" && wks[p[1]]) || (p[0] === "m" && String(p[1]).slice(0, 4) === yr);
       if (!keep) { drop[k] = null; any = true; }
     });
-    if (any) setTicks(drop);
+    if (!any) return;
+    setTicks(drop);
+    if (!SYNC) { Object.keys(drop).forEach(function (k) { delete pending[k]; }); save(); }
   }
 
   // ---------- Shared list (Firebase Realtime Database, REST + live stream) ----------
@@ -557,7 +591,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 
   var es = null, gotSnapshot = false, retryTimer = null;
   function connect() {
-    if (!SYNC) { setStatus(DB ? "badconfig" : "local"); return; }
+    if (!SYNC) return;
     if (typeof EventSource === "undefined") { setStatus("error"); return; }
     if (es) es.close();
     clearTimeout(retryTimer);
@@ -811,13 +845,14 @@ ul { list-style: none; margin: 0; padding: 0; }
   try { var saved = localStorage.getItem(SK + "-tab"); if (saved === "daily" || saved === "weekly" || saved === "monthly") activeTab = saved; } catch (e) {}
   show(activeTab);
 
-  connect();
-  flush();
+  setStatus("loading");
+  loadConfig();
 
   function checkDate() { if (ymd(new Date()) !== N.todayKey) boot(); }
   function wake() {
     checkDate();
-    if (SYNC && (!es || es.readyState === 2)) connect();
+    if (!SYNC) { loadConfig(); return; }
+    if (!es || es.readyState === 2) connect();
     flush();
   }
   setInterval(checkDate, 60000);
